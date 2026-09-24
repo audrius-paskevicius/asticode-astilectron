@@ -31,6 +31,22 @@ Here's a few things you need to know:
 
 Check out [go-astilectron](https://github.com/asticode/go-astilectron) for `astilectron` GO language bindings
 
+# Protected windows
+
+With `windowOptions.closable: false`, normal window-close and application-quit
+requests are cancelled on Windows, macOS, and Linux. A rejected close leaves the
+window open; `hideOnClose`, `minimizeOnClose`, and `messageBoxOnClose` are not run.
+Rejected application quits do not send `app.cmd.quit` to the client.
+
+The client should complete its shutdown work before sending `app.cmd.quit` to
+allow the application to quit. Applications without protected windows retain
+their existing close/quit behavior. Explicit destruction, process termination,
+and operating-system shutdown are outside this protection.
+
+Run `npm test` (or `node test/close-policy.js`) for the protocol regression tests.
+Run `electron test/electron-close.js` for an isolated native-window smoke test;
+it creates test windows and uses an in-process protocol client.
+
 # Features and roadmap
 
 - [x] window basic methods (create, show, close, resize, minimize, maximize, ...)

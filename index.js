@@ -14,12 +14,23 @@ let elements = {};
 let windowOptions = {};
 let menus = {};
 let quittingApp = false;
+let quitRequestedByClient = false;
 
 // Single instance
 let lastWindowId = null;
 
 // App is quitting
-const beforeQuit = () => {
+function isProtectedWindow(id) {
+    return elements[id] && windowOptions[id] && windowOptions[id].closable === false;
+}
+
+const beforeQuit = (event) => {
+    // Reject OS quit requests before notifying the client, which may stop its
+    // backend as soon as it receives app.cmd.quit.
+    if (!quitRequestedByClient && Object.keys(windowOptions).some(isProtectedWindow)) {
+        event.preventDefault();
+        return;
+    }
     quittingApp = true;
     client.write(consts.targetIds.app,consts.eventNames.appCmdQuit);
 };
@@ -101,6 +112,8 @@ function onReady () {
         switch (json.name) {
             // App
             case consts.eventNames.appCmdQuit:
+            // The client sends this only when its own shutdown work is complete.
+            quitRequestedByClient = true;
             app.quit();
             break;
 
@@ -494,6 +507,12 @@ function windowCreate(json) {
     //json.windowOptions.webPreferences.nodeIntegration = true
     elements[json.targetID] = new BrowserWindow(json.windowOptions)
     windowOptions[json.targetID] = json.windowOptions
+    // Register immediately, including while asynchronous proxy setup is pending.
+    elements[json.targetID].on('close', (event) => {
+        if (!quittingApp && isProtectedWindow(json.targetID)) {
+            event.preventDefault();
+        }
+    });
     if (typeof json.windowOptions.proxy !== "undefined") {
         elements[json.targetID].webContents.session.setProxy(json.windowOptions.proxy)
             .then(() => windowCreateFinish(json))
@@ -508,6 +527,7 @@ function windowCreateFinish(json) {
     elements[json.targetID].loadURL(json.url, (typeof json.windowOptions.load !== "undefined" ? json.windowOptions.load :  {}));
     elements[json.targetID].on('blur', () => { client.write(json.targetID, consts.eventNames.windowEventBlur) })
     elements[json.targetID].on('close', (e) => {
+        if (e.defaultPrevented) return;
         if (typeof windowOptions[json.targetID] !== "undefined" && typeof windowOptions[json.targetID].custom !== "undefined") {
             if (typeof windowOptions[json.targetID].custom.messageBoxOnClose !== "undefined") {
                 let buttonId = dialog.showMessageBoxSync(null, windowOptions[json.targetID].custom.messageBoxOnClose)

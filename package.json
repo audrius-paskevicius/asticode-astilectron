@@ -1,6 +1,6 @@
 {
   "name": "astilectron",
-  "version": "0.57.0",
+  "version": "0.58.1",
   "description": "Electron-based cross-language application framework",
   "license": "MIT",
   "author": "Quentin Renard (https://github.com/asticode)",
@@ -14,6 +14,9 @@
   ],
   "bin": "main.js",
   "main": "index.js",
+  "scripts": {
+    "test": "node test/close-policy.js"
+  },
   "peerDependencies": {
     "electron": ">=1.8.1"
   }
